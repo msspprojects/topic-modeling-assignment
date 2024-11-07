@@ -9,6 +9,9 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(topicmodels)
 library(tidytext)
+library(dplyr)
+library(lexicon)
+library(ggplot2)
 ```
 
 ```{r}
@@ -16,6 +19,127 @@ df <- read.csv("movie_plots.csv")
 ```
 
 ```{r}
+# Find document word counts
+df_word <- df %>%
+  unnest_tokens(word, Plot)
 
+word_counts <- df_word %>%
+  anti_join(stop_words, by="word") %>%
+  count(Movie.Name, word, sort = TRUE)
+
+# Use lexicon to remove common first names
+data("freq_first_names")
+given_name <- tolower(freq_first_names$Name)
+word_counts <- word_counts %>%
+  filter(!(word %in% given_name))
+
+print(word_counts)
 ```
+As the table above shown, the most used word in all those plots is "stile" with 17 counts in the movie King of Pecos.
+
+```{r}
+# LDA on films
+
+# First create a DocumentTermMatrix for further topic modeling
+film_dtm <- word_counts %>%
+  cast_dtm(Movie.Name, word, n)
+
+# Use LDA to create a 10 topic model
+film_lda <- LDA(film_dtm, k = 10, control = list(seed = 724))
+film_topics <- tidy(film_lda, matrix="beta")
+head(film_topics)
+```
+```{r}
+top_movie <- film_topics %>%
+  group_by(topic) %>%
+  slice_max(beta) %>%
+  ungroup()
+
+print(top_movie)
+```
+As shown in the table above, we can find out the most related word in each topic. After that, I will try to name each topic and see the content within each topic:
+```{r}
+# All movies in topic 1
+topic1_word <- film_topics %>%
+  filter(topic == 1) %>%
+  arrange(-beta)
+head(topic1_word)
+```
+From the top words, topic 1 could be related to christmas movie.
+
+```{r}
+# All movies in topic 2
+topic2_word <- film_topics %>%
+  filter(topic == 2) %>%
+  arrange(-beta)
+head(topic2_word)
+```
+From the top words, the topic could be related western movie.
+
+```{r}
+# All movies in topic 3
+topic3_word <- film_topics %>%
+  filter(topic == 3) %>%
+  arrange(-beta)
+head(topic3_word)
+```
+From the top words, it is unclear the general name of the topic.
+
+```{r}
+# All movies in topic 4
+topic4_word <- film_topics %>%
+  filter(topic == 4) %>%
+  arrange(-beta)
+head(topic4_word)
+```
+From the top words, the topic could be related to movie about world war one or two.
+
+```{r}
+# All movies in topic 5
+topic5_word <- film_topics %>%
+  filter(topic == 5) %>%
+  arrange(-beta)
+head(topic5_word)
+```
+From the top words, the topic could be related to movie about black american life within world war one or two.
+
+```{r}
+topic6_word <- film_topics %>%
+  filter(topic == 6) %>%
+  arrange(-beta)
+head(topic6_word)
+```
+From the top words, it is unclear what this topic related to.
+
+```{r}
+topic7_word <- film_topics %>%
+  filter(topic == 7) %>%
+  arrange(-beta)
+head(topic7_word)
+```
+From the top words, it is unclear what this topic related to.
+
+```{r}
+topic8_word <- film_topics %>%
+  filter(topic == 8) %>%
+  arrange(-beta)
+head(topic8_word)
+```
+From the top words, it is unclear what this topic related to.
+
+```{r}
+topic9_word <- film_topics %>%
+  filter(topic == 9) %>%
+  arrange(-beta)
+head(topic9_word)
+```
+From the top words in topic 9, this topic could be related to western movie.
+
+```{r}
+topic10_word <- film_topics %>%
+  filter(topic == 10) %>%
+  arrange(-beta)
+head(topic10_word)
+```
+From the top words shown above, it is also unclear what the topic relates to.
 
