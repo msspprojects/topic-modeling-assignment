@@ -50,24 +50,85 @@ As the table above shown, the most used word in all those plots is "stile" with 
 film_dtm <- word_counts %>%
   cast_dtm(Movie.Name, word, n)
 
-# Evaluate the number of topics (k) from 4 to 10
+# Evaluate the number of topics (k) from 10 to 30
 result <- FindTopicsNumber(
   film_dtm,
-  topics = seq(4, 10, by = 1),
+  topics = seq(10, 30, by = 5),
   metrics = c("CaoJuan2009", "Arun2010", "Griffiths2004", "Deveaud2014"),
   method = "Gibbs",            
-  control = list(seed = 724),
-  mc.cores = 2,                
-  verbose = TRUE
+  control = list(seed = 724)
 )
 
 FindTopicsNumber_plot(result)
-
-# Use LDA to create a 10 topic model
-film_lda <- LDA(film_dtm, k = 6, control = list(seed = 724))
-film_topics <- tidy(film_lda, matrix="gamma")
 ```
-From the plot created above, the best number of topic could be 6, which means that k=6.
+From the plot created above, the best number of topic could be 20, which means that k=20.
+```{r}
+# Use LDA to create a 10 topic model
+film_lda <- LDA(film_dtm, k = 20, control = list(seed = 724))
+film_topics <- tidy(film_lda, matrix="gamma")
+film_beta <- tidy(film_lda, matrix="beta")
+```
+
+```{r}
+top_movie1 <- film_topics %>%
+  group_by(topic) %>%
+  filter(gamma > 0.1) %>%
+  filter(topic %in% 1:5)
+
+ggplot(top_movie1, aes(x = as.factor(topic), 
+                       y = gamma, fill = as.factor(topic))) +
+  geom_boxplot() +
+  labs(title = "Distribution of Gamma Values Greater than 0.1 by Topic",
+       x = "Topic",
+       y = "Gamma",
+       fill = "Topic") +
+  theme_minimal()
+```
+From the box plot above, it is clear that a lot of the gamma values are centered at 1 for each topic, but the distribution is kinda similar, so we can further explore what is the difference in some of the topics, for example topic 1 and 3:
+```{r}
+# For topic 1
+topic1_all <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 1) %>%
+  summarise(count=n())
+print(topic1_all)
+
+topic1_over0.9 <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 1 & gamma > 0.9) %>%
+  summarise(count=n())
+print(topic1_over0.9)
+
+topic1_less0.1 <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 1 & gamma < 0.1) %>%
+  summarise(count=n())
+print(topic1_less0.1)
+```
+From the summary above, for topic 1, it is clear that most of the movies have gamma values less than 0.1.
+
+```{r}
+# For topic 1
+topic3_all <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 3) %>%
+  summarise(count=n())
+print(topic3_all)
+
+topic3_over0.9 <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 3 & gamma > 0.9) %>%
+  summarise(count=n())
+print(topic3_over0.9)
+
+topic3_less0.1 <- film_topics %>%
+  group_by(topic) %>%
+  filter(topic == 3 & gamma < 0.1) %>%
+  summarise(count=n())
+print(topic3_less0.1)
+```
+From the summary above, for topic 3, it is also clear that most of the movies have gamma values less than 0.1. Although the box plot for topic 1 and 3 in the plot above looks similar, topic 3 actually have more movies with gamma values less than 0.1, and less movies with gamma values greater than 0.9, compared to topic 1.
+
 ```{r}
 top_movie <- film_topics %>%
   group_by(topic) %>%
@@ -76,51 +137,51 @@ top_movie <- film_topics %>%
 
 print(top_movie)
 ```
-As shown in the table above, we can find out the most related movie in each topic. After that, I will try to name each topic and see the content within each topic:
+As shown in the table above, we can find out the most related movie in each topic. After that, I will try to name the first five topic and see the content within each topic by looking at the beta values related to each word in the plot:
 ```{r}
 # All movies in topic 1
-topic1_word <- film_topics %>%
+topic1_word <- film_beta %>%
   filter(topic == 1) %>%
-  arrange(-gamma)
+  arrange(-beta)
 head(topic1_word)
 ```
+The topic 1 could be related to action movie.
 
 ```{r}
 # All movies in topic 2
-topic2_word <- film_topics %>%
+topic2_word <- film_beta %>%
   filter(topic == 2) %>%
-  arrange(-gamma)
+  arrange(-beta)
 head(topic2_word)
 ```
+The topic 2 could be related to western movie.
 
 ```{r}
 # All movies in topic 3
-topic3_word <- film_topics %>%
+topic3_word <- film_beta %>%
   filter(topic == 3) %>%
-  arrange(-gamma)
+  arrange(-beta)
 head(topic3_word)
 ```
+The topic 3 could be related to history movies.
 
 ```{r}
 # All movies in topic 4
-topic4_word <- film_topics %>%
+topic4_word <- film_beta %>%
   filter(topic == 4) %>%
-  arrange(-gamma)
+  arrange(-beta)
 head(topic4_word)
 ```
+The topic 4 could be related to war movie.
 ```{r}
 # All movies in topic 5
-topic5_word <- film_topics %>%
+topic5_word <- film_beta %>%
   filter(topic == 5) %>%
-  arrange(-gamma)
+  arrange(-beta)
 head(topic5_word)
 ```
-```{r}
-topic6_word <- film_topics %>%
-  filter(topic == 6) %>%
-  arrange(-gamma)
-head(topic6_word)
-```
+The topic 5 could be also be related to history movies.
+
 After finding out what is in each of those topics, we can use k-means clustering to cluster those data together:
 ```{r}
 # Read in the movie plots with genres data
@@ -149,10 +210,10 @@ wider_data <- wider_data %>% drop_na()
 fviz_nbclust(wider_data %>% select(-document), kmeans, method = "wss")
 
 ```
-From the scree plot above, the elbow point is at 6, so the optimized number of cluster k should be 6.
+From the scree plot above, the elbow point is at 9, so the optimized number of cluster k should be 9.
 
 ```{r}
-cluster <- kmeans(wider_data %>% select(-document), 6)
+cluster <- kmeans(wider_data %>% select(-document), 9)
 fviz_cluster(cluster, data = wider_data %>% select(-document))
 ```
 The graph may not be very clear, we can find out what actually in each cluster:
@@ -202,24 +263,26 @@ From the word cloud, the first cluster could be related to western movie.
 ```{r, message=FALSE}
 generate_wordcloud(2)
 ```
-The second cluster could also be related to western movie.
+The second cluster could also be related to romantic movie.
 
 ```{r, message=FALSE, warning=FALSE}
 generate_wordcloud(3)
 ```
-Cluster 3 could be related to romance.
+Cluster 3 could also be related to history movie.
 
 ```{r, message=FALSE}
 generate_wordcloud(4)
 ```
+Cluster 4 could be related to action movie.
 
 ```{r, message=FALSE}
 generate_wordcloud(5)
 ```
-
+Cluster 5 could be related to war movie.
 ```{r, message=FALSE}
 generate_wordcloud(6)
 ```
+Cluster 6 could be related to sci-fi movie.
 
 ```{r}
 # Find genre in each cluster
@@ -248,24 +311,27 @@ The first cluster contains a lot of western movie, which is consistent with the 
 ```{r, warning=FALSE}
 find_genre(2)
 ```
-The second cluster also contains a lot of western movies, which is also consistent with the word cloud created before.
+The top genre in the second cluster is action movies, which is also consistent with the word cloud created before.
 
 ```{r, warning=FALSE}
 find_genre(3)
 ```
-Cluster 3 contains a lot of movies in action, sci-fi and love genres, this is probably why there are words like "space", "time" and "love".
+Cluster 3 contains a lot of movies in action, sci-fi and western genres, this is probably why there are words like "star", "night" and "planet".
 
 ```{r, warning=FALSE}
 find_genre(4)
 ```
-Cluster 4 again contains a lot of western and action movies, and that is probably why we see words like "gang", "sheriff", "ranch" and "indian" in the word cloud.
+Cluster 4 again contains a lot of action movies, and that is probably why we see words like "drug", "party", "action" and "war" in the word cloud.
 
 ```{r, warning=FALSE}
 find_genre(5)
 ```
-Most of the movies in cluster 5 belong to western genre, which is why we again see a lot of words like "gang", "ranch" and "cattle" in the word cloud.
+Most of the movies in cluster 5 belong to western genre, which is why we again see a lot of words like "gang", "ranch" and "horse" in the word cloud.
 
 ```{r, warning=FALSE}
 find_genre(6)
 ```
-Most of the movies in cluster 6 belong to action genre, which is why we see a lot of words like "life", "story", "crime" and "footage" in the word cloud.
+Most of the movies in cluster 6 belong to action genre, which is why we see a lot of words like "fight", "war" and "expedition" in the word cloud.
+
+In summary, most of the clusters created by k-means correctly reflected the genre of movies and correspond to the word in the word clouds. However, some clusters still overlap with each other, and some genres in the movie_plots_with_genre data are missing, indicating that the model may not accurately classify some of the movies, and this is the problem I can work on in the next step. 
+
