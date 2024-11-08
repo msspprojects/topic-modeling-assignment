@@ -63,11 +63,9 @@ result <- FindTopicsNumber(
 
 FindTopicsNumber_plot(result)
 
-
 # Use LDA to create a 10 topic model
 film_lda <- LDA(film_dtm, k = 6, control = list(seed = 724))
 film_topics <- tidy(film_lda, matrix="gamma")
-head(film_topics)
 ```
 From the plot created above, the best number of topic could be 6, which means that k=6.
 ```{r}
@@ -161,32 +159,113 @@ The graph may not be very clear, we can find out what actually in each cluster:
 ```{r, warning=FALSE, message=FALSE}
 wider_data$cluster <- cluster$cluster
 
-cluster1 <- wider_data %>%
-  filter(cluster == 1) %>%
-  select(c(document, cluster))
-
 df <- rename(df, document=Movie.Name)
-
-cluster1 <- left_join(cluster1, df, by="document")
-cluster1 <- cluster1 %>%
-  unnest_tokens(word, Plot)
-
-# Set seed for consistent results
-set.seed(123)
-
-cluster1 %>%
-  anti_join(stop_words) %>%
-  count(word) %>%
-  with(wordcloud(
-    words = word,
-    freq = n,
-    max.words = 100,
-    scale = c(3, 0.5),       
-    min.freq = 2,            
-    colors = brewer.pal(8, "Dark2"),  
-    random.order = FALSE,    
-    rot.per = 0.2
-  ))
+df1 <- rename(df1, document=Movie.Name)
 
 ```
+```{r}
+# Define a function to create a word cloud
+generate_wordcloud <- function(cluster_num, data1=wider_data, data2=df) {
+  cluster_data <- wider_data %>%
+    filter(cluster == cluster_num) %>%
+    select(document, cluster)
+  
+  # Join with original dataset to get the 'Plot' column
+  cluster_data <- left_join(cluster_data, df, by = "document")
+  
+  cluster_data <- cluster_data %>%
+    unnest_tokens(word, Plot)
+  
+  set.seed(123)
+  
+  # Create the word cloud
+  cluster_data %>%
+    anti_join(stop_words) %>%
+    count(word) %>%
+    with(wordcloud(
+      words = word,
+      freq = n,
+      max.words = 50,
+      scale = c(3, 0.5),
+      min.freq = 2,
+      colors = brewer.pal(8, "Dark2"),
+      random.order = FALSE,
+      rot.per = 0.2
+    ))
+}
+```
+```{r, message=FALSE}
+generate_wordcloud(1)
+```
+From the word cloud, the first cluster could be related to western movie.
 
+```{r, message=FALSE}
+generate_wordcloud(2)
+```
+The second cluster could also be related to western movie.
+
+```{r, message=FALSE, warning=FALSE}
+generate_wordcloud(3)
+```
+Cluster 3 could be related to romance.
+
+```{r, message=FALSE}
+generate_wordcloud(4)
+```
+
+```{r, message=FALSE}
+generate_wordcloud(5)
+```
+
+```{r, message=FALSE}
+generate_wordcloud(6)
+```
+
+```{r}
+# Find genre in each cluster
+find_genre <- function(cluster_num) {
+  cluster_data <- wider_data %>%
+    filter(cluster == cluster_num) %>%
+    select(document, cluster)
+  
+  # Join with original dataset to get the 'Plot' column
+  cluster_data <- left_join(cluster_data, df, by = "document")
+  cluster_data <- left_join(cluster_data, df1, by = "document")
+  
+  top_genre <- cluster_data %>%
+    group_by(Genre) %>%
+    summarise(count = n()) %>%
+    arrange(desc(count))
+  
+  print(top_genre)
+}
+```
+```{r, warning=FALSE}
+find_genre(1)
+```
+The first cluster contains a lot of western movie, which is consistent with the word cloud created before.
+
+```{r, warning=FALSE}
+find_genre(2)
+```
+The second cluster also contains a lot of western movies, which is also consistent with the word cloud created before.
+
+```{r, warning=FALSE}
+find_genre(3)
+```
+Cluster 3 contains a lot of movies in action, sci-fi and love genres, this is probably why there are words like "space", "time" and "love".
+
+```{r, warning=FALSE}
+find_genre(4)
+```
+Cluster 4 again contains a lot of western and action movies, and that is probably why we see words like "gang", "sheriff", "ranch" and "indian" in the word cloud.
+
+```{r, warning=FALSE}
+find_genre(5)
+```
+Most of the movies in cluster 5 belong to western genre, which is why we again see a lot of words like "gang", "ranch" and "cattle" in the word cloud.
+
+```{r, warning=FALSE}
+find_genre(6)
+```
+Most of the movies in cluster 6 belong to action genre, which is why we see a lot of words like "life", "story", "crime" and "footage" in the word cloud.
