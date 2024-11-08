@@ -39,7 +39,7 @@ given_name <- tolower(freq_first_names$Name)
 word_counts <- word_counts %>%
   filter(!(word %in% given_name))
 
-print(word_counts)
+head(word_counts)
 ```
 As the table above shown, the most used word in all those plots is "stile" with 17 counts in the movie King of Pecos.
 
@@ -213,10 +213,11 @@ fviz_nbclust(wider_data %>% select(-document), kmeans, method = "wss")
 From the scree plot above, the elbow point is at 9, so the optimized number of cluster k should be 9.
 
 ```{r}
+set.seed(724)
 cluster <- kmeans(wider_data %>% select(-document), 9)
 fviz_cluster(cluster, data = wider_data %>% select(-document))
 ```
-The graph may not be very clear, we can find out what actually in each cluster:
+The graph may not be very clear, we can find out what actually in first six clusters:
 ```{r, warning=FALSE, message=FALSE}
 wider_data$cluster <- cluster$cluster
 
@@ -255,7 +256,7 @@ generate_wordcloud <- function(cluster_num, data1=wider_data, data2=df) {
     ))
 }
 ```
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 generate_wordcloud(1)
 ```
 From the word cloud, the first cluster could be related to western movie.
